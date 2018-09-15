@@ -13,12 +13,13 @@
   },
   "author": "Daniel Valdivieso",
   "dependencies": {
-    "express": "*",
-    "express-handlebars": "*",
-    "mongoose": "*",
-    "body-parser": "*",
-    "cheerio": "*",
-    "request": "*"
+    "body-parser": "^1.18.3",
+    "cheerio": "^0.22.0",
+    "express": "^4.16.3",
+    "express-handlebars": "^3.0.0",
+    "mongoose": "^5.2.14",
+    "morgan": "^1.9.1",
+    "request": "^2.88.0"
   },
   "license": "ISC",
   "bugs": {

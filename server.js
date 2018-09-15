@@ -4,41 +4,102 @@ var mongoose = require("mongoose");
 var bodyparser = require("body-parser");
 var cheerio = require("cheerio");
 var request = require("request");
+var logger = requiere("morgan");
 
-// First, tell the console what server.js is doing
-console.log("\n***********************************\n" +
-            "Grabbing every thread name and link\n" +
-            "from reddit's webdev board:" +
-            "\n***********************************\n");
+// = Middleware (pass everything through the logger first) ================================================
+app.use(logger('dev'));
+app.use(bodyParser.urlencoded({
+  extended: false
+}));
+app.use(express.static('public')); // (create a public folder and land there)
 
-// Making a request for reddit's "webdev" board. The page's HTML is passed as the callback's third argument
-request("https://www.reddit.com/r/webdev", function(error, response, html) {
+// = Database configuration ================================================
+mongoose.connect('mongodb://localhost/mongoosescraper');
+var db = mongoose.connection;
 
-  // Load the HTML into cheerio and save it to a variable
-  // '$' becomes a shorthand for cheerio's selector commands, much like jQuery's '$'
-  var $ = cheerio.load(html);
+db.on('error', function (err) {
+  console.log('Mongoose Error: ', err);
+});
+db.once('open', function () {
+  console.log('Mongoose connection successful.');
+});
 
-  // An empty array to save the data that we'll scrape
-  var results = [];
+// = Require Schemas ================================================================
+var Note = require('./models/Note.js');
+var Article = require('./models/Article.js');
 
-  // With cheerio, find each p-tag with the "title" class
-  // (i: iterator. element: the current element)
-  $("p.title").each(function(i, element) {
+// = Routes ================================================================
+app.get('/', function (req, res) {
+  res.send(index.html); // sending the html file rather than rendering a handlebars file
+});
 
-    // Save the text of the element in a "title" variable
-    var title = $(element).text();
+app.get('/scrape', function (req, res) {
+  request('http://www.echojs.com/', function (error, response, html) {
+    var $ = cheerio.load(html);
+    $('article h2').each(function (i, element) {
 
-    // In the currently selected element, look at its child elements (i.e., its a-tags),
-    // then save the values for any "href" attributes that the child elements may have
-    var link = $(element).children().attr("href");
+      var result = {};
 
-    // Save these results in an object that we'll push into the results array we defined earlier
-    results.push({
-      title: title,
-      link: link
+      result.title = $(this).children('a').text();
+      result.link = $(this).children('a').attr('href');
+
+      var entry = new Article(result);
+
+      entry.save(function (err, doc) {
+        if (err) {
+          console.log(err);
+        } else {
+          console.log(doc);
+        }
+      });
+
+
     });
   });
+  res.send("Scrape Complete");
+});
 
-  // Log the results once you've looped through each of the elements found with cheerio
-  console.log(results);
+
+app.get('/articles', function (req, res) {
+  Article.find({}, function (err, doc) {
+    if (err) {
+      console.log(err);
+    } else {
+      res.json(doc);
+    }
+  });
+});
+
+
+app.get('/articles/:id', function (req, res) {
+  Article.findOne({ '_id': req.params.id })
+    .populate('note')
+    .exec(function (err, doc) {
+      if (err) {
+        console.log(err);
+      } else {
+        res.json(doc);
+      }
+    });
+});
+
+
+app.post('/articles/:id', function (req, res) {
+  var newNote = new Note(req.body);
+
+  newNote.save(function (err, doc) {
+    if (err) {
+      console.log(err);
+    } else {
+      Article.findOneAndUpdate({ '_id': req.params.id }, { 'note': doc._id })
+        .exec(function (err, doc) {
+          if (err) {
+            console.log(err);
+          } else {
+            res.send(doc);
+          }
+        });
+
+    }
+  });
 });
