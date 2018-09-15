@@ -7,6 +7,11 @@ var request = require("request");
 var logger = requiere("morgan");
 
 // = Middleware (pass everything through the logger first) ================================================
+var db = require("./models")
+var PORT = process.env.PORT || 3000;
+
+var app = express();
+
 app.use(logger('dev'));
 app.use(bodyParser.urlencoded({
   extended: false
@@ -15,6 +20,8 @@ app.use(express.static('public')); // (create a public folder and land there)
 
 // = Database configuration ================================================
 mongoose.connect('mongodb://localhost/mongoosescraper');
+
+
 var db = mongoose.connection;
 
 db.on('error', function (err) {
@@ -102,4 +109,8 @@ app.post('/articles/:id', function (req, res) {
 
     }
   });
+});
+
+app.listen(PORT, function(){
+  console.log("App running on port " + PORT + "!");
 });
